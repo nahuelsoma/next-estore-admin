@@ -1,33 +1,65 @@
+import { useState, useEffect } from "react";
+import { CheckIcon, XCircleIcon } from "@heroicons/react/solid";
+import Link from "next/link";
+import Modal from "@common/Modal";
+import FormProduct from "@components/FormProduct";
+import axios from "axios";
 import endPoints from "@services/api";
-import useFetch from "@hooks/useFetch";
-import { Chart } from "@common/Chart";
+import useAlert from "@hooks/useAlert";
+import Alert from "@common/Alert";
+import { deleteProduct } from "@services/api/products";
 
-const PRODUCT_LIMIT = 25;
-const PRODUCT_OFFSET = 0;
+export default function Products() {
+  const [open, setOpen] = useState(false);
+  const [products, setProducts] = useState([]);
+  const { alert, setAlert, toggleAlert } = useAlert();
 
-export default function Dashboard() {
-  const products = useFetch(endPoints.products.getProducts(PRODUCT_LIMIT, PRODUCT_OFFSET));
+  useEffect(() => {
+    async function getProducts() {
+      const response = await axios.get(endPoints.products.allProducts);
+      setProducts(response.data);
+    }
+    try {
+      getProducts();
+    } catch (error) {
+      console.log(error);
+    }
+  }, [alert]);
 
-  const categoryNames = products?.map(product => product.category);
-  const categoryCount = categoryNames?.map(category => category.name);
-
-  const countOccurrences = arr =>
-    arr.reduce((prev, curr) => ((prev[curr] = ++prev[curr] || 1), prev), {});
-
-  const data = {
-    datasets: [
-      {
-        label: "Categories",
-        data: countOccurrences(categoryCount),
-        borderWidth: 2,
-        backgroundColor: ["#ffbb11", "#c0c0c0", "#50AF95", "f3ba2f", "#2a71d0"],
-      },
-    ],
+  const handleDelete = id => {
+    deleteProduct(id).then(() => {
+      setAlert({
+        active: true,
+        message: "Delete product successfully",
+        type: "error",
+        autoClose: true,
+      });
+    });
   };
 
   return (
     <>
-      <Chart className="mb-8 mt-2" chartData={data} />
+      <Alert alert={alert} handleClose={toggleAlert} />
+      <div className="lg:flex lg:items-center lg:justify-between mb-8">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            List of Products
+          </h2>
+        </div>
+        <div className="mt-5 flex lg:mt-0 lg:ml-4">
+          <span className="sm:ml-3">
+            <button
+              type="button"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              onClick={() => setOpen(true)}
+            >
+              <CheckIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+              Add Product
+            </button>
+          </span>
+        </div>
+      </div>
+
       <div className="flex flex-col">
         <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -85,7 +117,7 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{product.category.name}</div>
+                        <div className="text-sm text-gray-900">{product.category.id}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -96,14 +128,19 @@ export default function Dashboard() {
                         {product.id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="/edit" className="text-indigo-600 hover:text-indigo-900">
+                        <Link
+                          href={`/dashboard/edit/${product.id}`}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
                           Edit
-                        </a>
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="/edit" className="text-indigo-600 hover:text-indigo-900">
-                          Delete
-                        </a>
+                        <XCircleIcon
+                          className="flex-shrink-0 h-6 w-6 text-gray-400 cursor-pointer"
+                          aria-hidden="true"
+                          onClick={() => handleDelete(product.id)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -113,6 +150,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <Modal open={open} setOpen={setOpen}>
+        <FormProduct setOpen={setOpen} setAlert={setAlert} />
+      </Modal>
     </>
   );
 }
